@@ -21,10 +21,6 @@ COPY --from=builder /app/node_modules ./node_modules
 # Copy source code
 COPY package*.json ./
 COPY src/ ./src/
-COPY ssl/generate-cert.sh /generate-cert.sh
-
-# Buat folder ssl di dalam container
-RUN mkdir -p /app/ssl && chmod +x /generate-cert.sh
 
 # Generate SSL self-signed certificate saat build
 RUN /generate-cert.sh && \
