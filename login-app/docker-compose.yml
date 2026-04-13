@@ -49,6 +49,23 @@ services:
       db-101032300137:
         condition: service_healthy
 
+# ─── TAMBAHAN: phpMyAdmin ─────────────────────────────────
+  phpmyadmin:
+    container_name: phpmyadmin-101032300137
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db-101032300137
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: RootPassword123!
+    ports:
+      - "8080:80"
+    networks:
+      - app-network
+    depends_on:
+      db-101032300137:
+        condition: service_healthy
+
 # ─── VOLUMES & NETWORKS ──────────────────────────────────────
 volumes:
   db_data:
