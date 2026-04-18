@@ -66,6 +66,37 @@ services:
       db-101032300137:
         condition: service_healthy
 
+# ─── SNORT IDS CONTAINER ─────────────────────────────────────
+  snort-101032300137:
+    container_name: snort-101032300137
+    build:
+      context: .
+      dockerfile: Dockerfile.snort
+    restart: unless-stopped
+
+    # network_mode: host — WAJIB agar Snort bisa:
+    # 1. Memonitor semua interface jaringan VM
+    # 2. Menangkap traffic antar container
+    # 3. Melakukan packet sniffing di level raw socket
+    # Catatan: container ini berbagi network stack dengan host VM
+    network_mode: host
+
+    cap_add:
+      - NET_ADMIN   # Izin kelola network interface
+      - NET_RAW     # Izin baca raw packet (WAJIB untuk sniffing)
+      - SYS_NICE    # Izin set process priority
+
+    volumes:
+      # Mount konfigurasi (read-only agar tidak termodifikasi)
+      - ./snort-config/snort.conf:/etc/snort/snort.conf:ro
+      - ./snort-config/local.rules:/etc/snort/rules/local.rules:ro
+      # Mount log agar bisa diakses dari host
+      - snort_logs:/var/log/snort
+
+    depends_on:
+      - web-101032300137
+      - db-101032300137
+
 # ─── VOLUMES & NETWORKS ──────────────────────────────────────
 volumes:
   db_data:
