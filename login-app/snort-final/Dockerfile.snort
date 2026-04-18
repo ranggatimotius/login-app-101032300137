@@ -1,0 +1,56 @@
+# ══════════════════════════════════════════════════════════════
+# Dockerfile.snort
+# Container khusus Snort IDS — NIM: 101032300137
+# ══════════════════════════════════════════════════════════════
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ─── Install Snort dan dependensi ────────────────────────────
+RUN apt-get update && apt-get install -y \
+    snort \
+    wget \
+    curl \
+    net-tools \
+    iproute2 \
+    iputils-ping \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# ─── Buat direktori yang dibutuhkan ──────────────────────────
+RUN mkdir -p /etc/snort/rules \
+             /etc/snort/so_rules \
+             /etc/snort/preproc_rules \
+             /var/log/snort \
+             /usr/local/lib/snort_dynamicrules
+
+# ─── Copy file konfigurasi ke dalam container ────────────────
+COPY snort-config/snort.conf   /etc/snort/snort.conf
+COPY snort-config/local.rules  /etc/snort/rules/local.rules
+
+# ─── Download & integrasi Community Rules ────────────────────
+RUN wget -q https://www.snort.org/downloads/community/community-rules.tar.gz \
+         -O /tmp/community-rules.tar.gz || true && \
+    if [ -f /tmp/community-rules.tar.gz ]; then \
+        tar -xzf /tmp/community-rules.tar.gz -C /tmp/ && \
+        cp /tmp/community-rules/*.rules /etc/snort/rules/ 2>/dev/null || true && \
+        echo "Community rules berhasil diintegrasikan"; \
+    else \
+        echo "Community rules tidak dapat didownload, skip"; \
+    fi && \
+    rm -f /tmp/community-rules.tar.gz
+
+# ─── Buat file pendukung yang dibutuhkan snort.conf ──────────
+RUN touch /etc/snort/rules/white_list.rules \
+          /etc/snort/rules/black_list.rules && \
+    chmod 644 /etc/snort/rules/*.rules
+
+# ─── Verifikasi instalasi Snort ──────────────────────────────
+RUN snort --version
+
+# ─── Copy & set entrypoint ───────────────────────────────────
+COPY snort-config/entrypoint-snort.sh /entrypoint-snort.sh
+RUN chmod +x /entrypoint-snort.sh
+
+CMD ["/entrypoint-snort.sh"]

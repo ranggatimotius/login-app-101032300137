@@ -1,0 +1,131 @@
+version: '3.8'
+
+# ══════════════════════════════════════════════════════════════
+# docker-compose.yml
+# Web Login App + Snort IDS + ACL Network
+# NIM: 101032300137
+# ══════════════════════════════════════════════════════════════
+
+services:
+
+  # ─── DATABASE CONTAINER ──────────────────────────────────────
+  db-101032300137:
+    container_name: db-101032300137
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: RootPassword123!
+      MYSQL_DATABASE: loginapp
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: AppPassword123!
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    # expose: hanya bisa diakses dari dalam Docker network
+    # TIDAK pakai ports: agar port 3306 tidak terbuka ke host
+    expose:
+      - "3306"
+    networks:
+      app-network:
+        ipv4_address: 172.20.0.10
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "appuser", "-pAppPassword123!"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─── WEB APP CONTAINER ───────────────────────────────────────
+  web-101032300137:
+    container_name: web-101032300137
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: db-101032300137
+      DB_USER: appuser
+      DB_PASSWORD: AppPassword123!
+      DB_NAME: loginapp
+      SESSION_SECRET: SuperSecretSessionKey_101032300137!
+    ports:
+      - "3000:3000"
+    networks:
+      app-network:
+        ipv4_address: 172.20.0.11
+    depends_on:
+      db-101032300137:
+        condition: service_healthy
+
+  # ─── PHPMYADMIN CONTAINER ────────────────────────────────────
+  phpmyadmin:
+    container_name: phpmyadmin-101032300137
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db-101032300137
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: RootPassword123!
+    ports:
+      - "8080:80"
+    networks:
+      app-network:
+        ipv4_address: 172.20.0.12
+    depends_on:
+      db-101032300137:
+        condition: service_healthy
+
+  # ─── SNORT IDS CONTAINER ─────────────────────────────────────
+  snort-101032300137:
+    container_name: snort-101032300137
+    build:
+      context: .
+      dockerfile: Dockerfile.snort
+    restart: unless-stopped
+
+    # network_mode: host — WAJIB agar Snort bisa:
+    # 1. Memonitor semua interface jaringan VM
+    # 2. Menangkap traffic antar container
+    # 3. Melakukan packet sniffing di level raw socket
+    # Catatan: container ini berbagi network stack dengan host VM
+    network_mode: host
+
+    cap_add:
+      - NET_ADMIN   # Izin kelola network interface
+      - NET_RAW     # Izin baca raw packet (WAJIB untuk sniffing)
+      - SYS_NICE    # Izin set process priority
+
+    volumes:
+      # Mount konfigurasi (read-only agar tidak termodifikasi)
+      - ./snort-config/snort.conf:/etc/snort/snort.conf:ro
+      - ./snort-config/local.rules:/etc/snort/rules/local.rules:ro
+      # Mount log agar bisa diakses dari host
+      - snort_logs:/var/log/snort
+
+    depends_on:
+      - web-101032300137
+      - db-101032300137
+
+# ─── VOLUMES ─────────────────────────────────────────────────
+volumes:
+  db_data:
+    driver: local
+  snort_logs:
+    driver: local
+
+# ─── NETWORKS ────────────────────────────────────────────────
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        # Subnet khusus untuk isolasi jaringan aplikasi
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+    driver_opts:
+      # Nama custom untuk bridge interface di host
+      com.docker.network.bridge.name: br-appnet-101032300137

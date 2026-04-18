@@ -1,0 +1,181 @@
+# ══════════════════════════════════════════════════════════════
+# local.rules — Custom Snort Rules
+# NIM: 101032300137
+# ══════════════════════════════════════════════════════════════
+# FORMAT RULE:
+# alert <proto> <src_ip> <src_port> -> <dst_ip> <dst_port>
+#   (msg:"pesan"; sid:nomor_unik; rev:versi;)
+# ══════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════
+# SECTION A — ICMP DETECTION
+# Mendeteksi aktivitas ping ke container
+# ══════════════════════════════════════════════════════════════
+
+# A1. Deteksi ping masuk (echo request)
+alert icmp any any -> $HOME_NET any \
+    (msg:"[IDS-101032300137] ICMP Ping Inbound Detected"; \
+     itype:8; \
+     sid:1000001; rev:1;)
+
+# A2. Deteksi ping keluar (echo reply)
+alert icmp $HOME_NET any -> any any \
+    (msg:"[IDS-101032300137] ICMP Echo Reply Outbound"; \
+     itype:0; \
+     sid:1000002; rev:1;)
+
+# A3. Deteksi ping flood (banyak ICMP dalam waktu singkat)
+alert icmp any any -> $HOME_NET any \
+    (msg:"[IDS-101032300137] ICMP Ping Flood Detected"; \
+     itype:8; \
+     threshold:type threshold,track by_src,count 10,seconds 5; \
+     sid:1000003; rev:1;)
+
+# ══════════════════════════════════════════════════════════════
+# SECTION B — PORT ACCESS DETECTION
+# Mendeteksi akses ke port penting
+# ══════════════════════════════════════════════════════════════
+
+# B1. Deteksi akses HTTP port 80
+alert tcp any any -> $HOME_NET 80 \
+    (msg:"[IDS-101032300137] HTTP Access Port 80 Detected"; \
+     flags:S; \
+     sid:1000004; rev:1;)
+
+# B2. Deteksi akses HTTPS port 443
+alert tcp any any -> $HOME_NET 443 \
+    (msg:"[IDS-101032300137] HTTPS Access Port 443 Detected"; \
+     flags:S; \
+     sid:1000005; rev:1;)
+
+# B3. Deteksi akses MySQL port 3306 — HIGH ALERT
+alert tcp any any -> $HOME_NET 3306 \
+    (msg:"[IDS-101032300137] SUSPICIOUS MySQL Port 3306 Access"; \
+     flags:S; \
+     sid:1000006; rev:1;)
+
+# B4. Deteksi akses Node.js port 3000
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-101032300137] Node.js App Port 3000 Access"; \
+     flags:S; \
+     sid:1000007; rev:1;)
+
+# B5. Deteksi akses phpMyAdmin port 8080
+alert tcp any any -> $HOME_NET 8080 \
+    (msg:"[IDS-101032300137] phpMyAdmin Port 8080 Access"; \
+     flags:S; \
+     sid:1000008; rev:1;)
+
+# ══════════════════════════════════════════════════════════════
+# SECTION C — SQL INJECTION DETECTION
+# Mendeteksi pola serangan SQL Injection pada port 3000
+# ══════════════════════════════════════════════════════════════
+
+# C1. Deteksi OR 1=1 via HTTP URI
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-101032300137] SQL Injection - OR 1=1 in URI"; \
+     content:"OR 1=1"; nocase; \
+     http_uri; \
+     sid:1000009; rev:1;)
+
+# C2. Deteksi OR 1=1 via POST body
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-101032300137] SQL Injection - OR 1=1 in POST Body"; \
+     content:"OR 1=1"; nocase; \
+     http_client_body; \
+     sid:1000010; rev:1;)
+
+# C3. Deteksi SELECT * FROM
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-101032300137] SQL Injection - SELECT FROM Detected"; \
+     content:"SELECT"; nocase; \
+     content:"FROM"; nocase; \
+     http_client_body; \
+     sid:1000011; rev:1;)
+
+# C4. Deteksi single quote comment attack
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-101032300137] SQL Injection - Quote Comment Attack"; \
+     content:"' --"; \
+     http_client_body; \
+     sid:1000012; rev:1;)
+
+# C5. Deteksi UNION SELECT
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-101032300137] SQL Injection - UNION SELECT Detected"; \
+     content:"UNION"; nocase; \
+     content:"SELECT"; nocase; \
+     http_client_body; \
+     sid:1000013; rev:1;)
+
+# C6. Deteksi DROP TABLE
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-101032300137] SQL Injection - DROP TABLE Detected"; \
+     content:"DROP"; nocase; \
+     content:"TABLE"; nocase; \
+     http_client_body; \
+     sid:1000014; rev:1;)
+
+# ══════════════════════════════════════════════════════════════
+# SECTION D — PORT SCAN DETECTION
+# Mendeteksi aktivitas port scanning (nmap, dll)
+# ══════════════════════════════════════════════════════════════
+
+# D1. Deteksi SYN scan ke banyak port
+alert tcp any any -> $HOME_NET any \
+    (msg:"[IDS-101032300137] Port Scan Detected - SYN Flood"; \
+     flags:S; \
+     threshold:type threshold,track by_src,count 20,seconds 3; \
+     sid:1000015; rev:1;)
+
+# ══════════════════════════════════════════════════════════════
+# SECTION E — MANUAL RULES TAMBAHAN (WAJIB)
+# Rule kustom dengan SID unik berbeda dari section sebelumnya
+# ══════════════════════════════════════════════════════════════
+
+# E1. MANUAL: ICMP custom — deteksi TTL kecil (suspicious ping)
+alert icmp any any -> $HOME_NET any \
+    (msg:"[IDS-MANUAL-101032300137] Custom ICMP TTL Suspicious"; \
+     itype:8; \
+     ttl:<5; \
+     sid:1000016; rev:1;)
+
+# E2. MANUAL: Port 22 SSH — deteksi percobaan akses
+alert tcp any any -> $HOME_NET 22 \
+    (msg:"[IDS-MANUAL-101032300137] SSH Port 22 Access Attempt"; \
+     flags:S; \
+     sid:1000017; rev:1;)
+
+# E3. MANUAL: SSH Brute Force — banyak percobaan login SSH
+alert tcp any any -> $HOME_NET 22 \
+    (msg:"[IDS-MANUAL-101032300137] SSH Brute Force Detected"; \
+     flags:S; \
+     threshold:type threshold,track by_src,count 5,seconds 60; \
+     sid:1000018; rev:1;)
+
+# E4. MANUAL: Deteksi XSS — script tag dalam request
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-MANUAL-101032300137] XSS Attempt - Script Tag"; \
+     content:"<script>"; nocase; \
+     http_client_body; \
+     sid:1000019; rev:1;)
+
+# E5. MANUAL: Port mencurigakan 4444 (backdoor/reverse shell)
+alert tcp any any -> $HOME_NET 4444 \
+    (msg:"[IDS-MANUAL-101032300137] Suspicious Backdoor Port 4444"; \
+     flags:S; \
+     sid:1000020; rev:1;)
+
+# E6. MANUAL: Path traversal attack
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-MANUAL-101032300137] Path Traversal Attempt"; \
+     content:"../"; \
+     http_uri; \
+     sid:1000021; rev:1;)
+
+# E7. MANUAL: Akses /etc/passwd (LFI attempt)
+alert tcp any any -> $HOME_NET 3000 \
+    (msg:"[IDS-MANUAL-101032300137] LFI Attempt /etc/passwd"; \
+     content:"/etc/passwd"; \
+     http_uri; \
+     sid:1000022; rev:1;)
