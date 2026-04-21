@@ -39,18 +39,24 @@ ethtool -K $INTERFACE rx off tx off gso off gro off tso off 2>/dev/null || \
 
 echo ""
 echo "══════════════════════════════════════════════"
-echo "  Snort 2.9 NIDS aktif"
+echo "  Snort 3 NIDS aktif"
 echo "  Interface : $INTERFACE"
+echo "  Mode      : afpacket DAQ"
 echo "  Checksums : disabled"
 echo "══════════════════════════════════════════════"
 echo ""
 
-# Jalankan Snort 2.9 dengan:
+# Jalankan Snort dengan:
+# --daq afpacket        = gunakan afpacket bukan pcap
+# --daq-var            = konfigurasi buffer
 # -k none              = KRITIS: abaikan semua checksum error
-# -A console           = Print alerts ke stdout
+# --treat-drop-as-alert = pastikan semua alert ter-log
 exec snort \
     -c /etc/snort/snort.conf \
     -i $INTERFACE \
-    -A console \
+    -A alert_fast \
+    -l /var/log/snort \
     -k none \
-    -l /var/log/snort
+    --treat-drop-as-alert \
+    --daq afpacket \
+    --daq-var buffer_size_mb=128
