@@ -16,15 +16,11 @@ echo "[+] Rules     : $(grep -c '^alert' /etc/snort/rules/local.rules 2>/dev/nul
 echo ""
 echo "========================================================"
 echo "  Snort NIDS aktif -- memonitor traffic..."
-echo "  Log dir   : /var/log/snort/"
 echo "========================================================"
 echo ""
 
 mkdir -p /var/log/snort
-touch /var/log/snort/alert_fast.txt
 
-# Tail alert file to stdout for docker logs visibility
-tail -f /var/log/snort/alert_fast.txt &
-
-# Replace shell with snort process (becomes PID 1)
-exec snort -c /etc/snort/snort.conf -i "$INTERFACE" -l /var/log/snort
+# Snort outputs alerts to stdout (file=false in snort.conf)
+# tee writes to both stdout (docker logs) AND file (host access)
+snort -c /etc/snort/snort.conf -i "$INTERFACE" -l /var/log/snort 2>&1 | tee -a /var/log/snort/alert_fast.txt
