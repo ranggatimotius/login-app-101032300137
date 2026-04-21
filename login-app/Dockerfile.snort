@@ -2,12 +2,16 @@ FROM kalilinux/kali-rolling
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY snort-packages/ /tmp/pkg/
-RUN cd /tmp/pkg && \
-    dpkg -i *.deb 2>/dev/null; \
-    apt-get install -f -y 2>/dev/null; \
-    dpkg -i *.deb 2>/dev/null; \
-    rm -rf /tmp/pkg
+# ─── Install Snort ───────────────────────────────────────────
+RUN apt-get update && apt-get install -y \
+    snort \
+    wget \
+    curl \
+    net-tools \
+    iproute2 \
+    iputils-ping \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install ethtool untuk disable checksum offloading
 RUN apt-get update -y && apt-get install -y ethtool 2>/dev/null || true
@@ -27,6 +31,7 @@ RUN touch /etc/snort/rules/white_list.rules \
     chmod 644 /etc/snort/rules/*.rules && \
     chmod +x /entrypoint-snort.sh
 
-RUN snort --version
+# ─── Verifikasi instalasi (Test Konfigurasi) ─────────────────
+RUN snort -T -c /etc/snort/snort.conf
 
 CMD ["/entrypoint-snort.sh"]
