@@ -26,8 +26,7 @@ services:
     expose:
       - "3306"
     networks:
-      app-network:
-        ipv4_address: 172.20.0.10
+      - app-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
              "-u", "appuser", "-pAppPassword123!"]
@@ -54,8 +53,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      app-network:
-        ipv4_address: 172.20.0.11
+      - app-network
     depends_on:
       db-101032300137:
         condition: service_healthy
@@ -72,8 +70,7 @@ services:
     ports:
       - "8080:80"
     networks:
-      app-network:
-        ipv4_address: 172.20.0.12
+      - app-network
     depends_on:
       db-101032300137:
         condition: service_healthy
@@ -120,12 +117,3 @@ volumes:
 networks:
   app-network:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        # Subnet khusus untuk isolasi jaringan aplikasi
-        - subnet: 172.20.0.0/24
-          gateway: 172.20.0.1
-    driver_opts:
-      # Nama custom untuk bridge interface di host
-      com.docker.network.bridge.name: br-appnet-101032300137

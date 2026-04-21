@@ -1,0 +1,35 @@
+FROM kalilinux/kali-rolling
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Copy package .deb dari host
+COPY snort-packages/ /tmp/snort-packages/
+
+# Install dari file lokal (tidak butuh internet)
+RUN cd /tmp/snort-packages && \
+    dpkg -i *.deb 2>/dev/null || true && \
+    apt-get install -f -y 2>/dev/null || true && \
+    dpkg -i *.deb 2>/dev/null || true && \
+    rm -rf /tmp/snort-packages
+
+# Buat direktori
+RUN mkdir -p /etc/snort/rules \
+             /etc/snort/so_rules \
+             /etc/snort/preproc_rules \
+             /var/log/snort \
+             /usr/local/lib/snort_dynamicrules
+
+# Copy konfigurasi
+COPY snort-config/snort.conf          /etc/snort/snort.conf
+COPY snort-config/local.rules         /etc/snort/rules/local.rules
+COPY snort-config/entrypoint-snort.sh /entrypoint-snort.sh
+
+# Buat file pendukung
+RUN touch /etc/snort/rules/white_list.rules \
+          /etc/snort/rules/black_list.rules && \
+    chmod 644 /etc/snort/rules/*.rules && \
+    chmod +x /entrypoint-snort.sh
+
+RUN snort --version
+
+CMD ["/entrypoint-snort.sh"]
