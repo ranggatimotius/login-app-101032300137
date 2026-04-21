@@ -26,7 +26,9 @@ COPY snort-config/snort.conf          /etc/snort/snort.conf
 COPY snort-config/local.rules         /etc/snort/rules/local.rules
 COPY snort-config/entrypoint-snort.sh /entrypoint-snort.sh
 
-RUN touch /etc/snort/rules/white_list.rules \
+RUN apt-get update -y && apt-get install -y dos2unix 2>/dev/null || true
+RUN dos2unix /etc/snort/snort.conf /etc/snort/rules/local.rules /entrypoint-snort.sh && \
+    touch /etc/snort/rules/white_list.rules \
           /etc/snort/rules/black_list.rules && \
     chmod 644 /etc/snort/rules/*.rules && \
     chmod +x /entrypoint-snort.sh
