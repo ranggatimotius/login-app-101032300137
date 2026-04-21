@@ -96,7 +96,8 @@ services:
     cap_add:
       - NET_ADMIN   # Izin kelola network interface
       - NET_RAW     # Izin baca raw packet (WAJIB untuk sniffing)
-      - SYS_NICE    # Izin set process priority
+      - SYS_NICE 
+      - SYS_ADMIN   # Izin set process priority
 
     volumes:
       # Mount konfigurasi (read-only agar tidak termodifikasi)
