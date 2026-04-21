@@ -26,7 +26,8 @@ services:
     expose:
       - "3306"
     networks:
-      - app-network
+      app-network:
+        ipv4_address: 172.20.0.10
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
              "-u", "appuser", "-pAppPassword123!"]
@@ -53,7 +54,8 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - app-network
+      app-network:
+        ipv4_address: 172.20.0.11
     depends_on:
       db-101032300137:
         condition: service_healthy
@@ -70,7 +72,8 @@ services:
     ports:
       - "8080:80"
     networks:
-      - app-network
+      app-network:
+        ipv4_address: 172.20.0.12
     depends_on:
       db-101032300137:
         condition: service_healthy
@@ -99,8 +102,8 @@ services:
       # Mount konfigurasi (read-only agar tidak termodifikasi)
       - ./snort-config/snort.conf:/etc/snort/snort.conf:ro
       - ./snort-config/local.rules:/etc/snort/rules/local.rules:ro
-      # Mount log agar bisa diakses dari host
-      - snort_logs:/var/log/snort
+      # BIND MOUNT log — langsung bisa akses dari host!
+      - ./snort-logs:/var/log/snort
 
     depends_on:
       - web-101032300137
@@ -110,10 +113,17 @@ services:
 volumes:
   db_data:
     driver: local
-  snort_logs:
-    driver: local
 
 # ─── NETWORKS ────────────────────────────────────────────────
 networks:
   app-network:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        # Subnet khusus untuk isolasi jaringan aplikasi
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+    driver_opts:
+      # Nama custom untuk bridge interface di host
+      com.docker.network.bridge.name: br-appnet-101032300137

@@ -1,5 +1,5 @@
 # ══════════════════════════════════════════════════════════════
-# Dockerfile.snort — Snort IDS Container
+# Dockerfile.snort — Snort 3 IDS Container
 # NIM: 101032300137
 # Base: Kali Linux (sesuai VM host)
 # ══════════════════════════════════════════════════════════════
@@ -31,10 +31,11 @@ COPY snort-config/snort.conf          /etc/snort/snort.conf
 COPY snort-config/local.rules         /etc/snort/rules/local.rules
 COPY snort-config/entrypoint-snort.sh /entrypoint-snort.sh
 
-# ─── Buat file pendukung ─────────────────────────────────────
+# ─── Buat file pendukung + FIX CRLF line endings ────────────
 RUN touch /etc/snort/rules/white_list.rules \
           /etc/snort/rules/black_list.rules && \
     chmod 644 /etc/snort/rules/*.rules && \
+    sed -i 's/\r$//' /entrypoint-snort.sh && \
     chmod +x /entrypoint-snort.sh
 
 # ─── Verifikasi instalasi ────────────────────────────────────
