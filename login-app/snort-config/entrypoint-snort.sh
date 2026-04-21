@@ -6,12 +6,9 @@ echo "   Snort IDS Container -- NIM: 101032300137"
 echo "========================================================"
 echo ""
 
-INTERFACE=$(ip route 2>/dev/null | grep default | awk '{print $5}' | head -n1)
-if [ -z "$INTERFACE" ]; then
-    INTERFACE="eth0"
-fi
+INTERFACE="any"
 
-echo "[+] Interface : $INTERFACE"
+echo "[+] Interface : $INTERFACE (all interfaces)"
 echo "[+] Rules     : $(grep -c '^alert' /etc/snort/rules/local.rules 2>/dev/null || echo 0) active rules"
 echo ""
 echo "========================================================"
