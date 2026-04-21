@@ -125,5 +125,5 @@ networks:
         - subnet: 172.20.0.0/24
           gateway: 172.20.0.1
     driver_opts:
-      # Nama custom untuk bridge interface di host
-      com.docker.network.bridge.name: br-appnet-101032300137
+      # Nama custom untuk bridge interface di host (max 15 char)
+      com.docker.network.bridge.name: br-appnet
