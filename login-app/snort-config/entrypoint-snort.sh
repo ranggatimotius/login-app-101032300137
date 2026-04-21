@@ -18,4 +18,4 @@ mkdir -p /var/log/snort
 touch /var/log/snort/alert_fast.txt
 
 # Snort sebagai PID 1 monitoring docker bridge interface
-exec snort -c /etc/snort/snort.conf -i br-appnet -A alert_fast -l /var/log/snort
+exec snort -c /etc/snort/snort.conf -i br-appnet
