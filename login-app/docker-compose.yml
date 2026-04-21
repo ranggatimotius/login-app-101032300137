@@ -45,7 +45,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: "3000"
       DB_HOST: db-101032300137
       DB_USER: appuser
       DB_PASSWORD: AppPassword123!
@@ -107,8 +107,10 @@ services:
       - ./snort-logs:/var/log/snort
 
     depends_on:
-      - web-101032300137
-      - db-101032300137
+      web-101032300137:
+        condition: service_started
+      db-101032300137:
+        condition: service_healthy
 
 # ─── VOLUMES ─────────────────────────────────────────────────
 volumes:
