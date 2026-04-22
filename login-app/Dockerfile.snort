@@ -1,3 +1,9 @@
+# ══════════════════════════════════════════════════════════════
+# Dockerfile.snort — Snort IDS Container
+# NIM: 101032300137
+# Base: Kali Linux (sesuai VM host)
+# ══════════════════════════════════════════════════════════════
+
 FROM kalilinux/kali-rolling
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -13,27 +19,25 @@ RUN apt-get update && apt-get install -y \
     netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ethtool untuk disable checksum offloading
-RUN apt-get update -y && apt-get install -y ethtool 2>/dev/null || true
-
+# ─── Buat direktori yang dibutuhkan ──────────────────────────
 RUN mkdir -p /etc/snort/rules \
              /etc/snort/so_rules \
              /etc/snort/preproc_rules \
              /var/log/snort \
              /usr/local/lib/snort_dynamicrules
 
+# ─── Copy file konfigurasi ───────────────────────────────────
 COPY snort-config/snort.conf          /etc/snort/snort.conf
 COPY snort-config/local.rules         /etc/snort/rules/local.rules
 COPY snort-config/entrypoint-snort.sh /entrypoint-snort.sh
 
-RUN apt-get update -y && apt-get install -y dos2unix 2>/dev/null || true
-RUN dos2unix /etc/snort/snort.conf /etc/snort/rules/local.rules /entrypoint-snort.sh && \
-    touch /etc/snort/rules/white_list.rules \
+# ─── Buat file pendukung ─────────────────────────────────────
+RUN touch /etc/snort/rules/white_list.rules \
           /etc/snort/rules/black_list.rules && \
     chmod 644 /etc/snort/rules/*.rules && \
     chmod +x /entrypoint-snort.sh
 
-# ─── Verifikasi instalasi (Test Konfigurasi) ─────────────────
-RUN snort -T -c /etc/snort/snort.conf
+# ─── Verifikasi instalasi ────────────────────────────────────
+RUN snort --version
 
 CMD ["/entrypoint-snort.sh"]

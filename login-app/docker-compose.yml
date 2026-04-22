@@ -26,8 +26,7 @@ services:
     expose:
       - "3306"
     networks:
-      app-network:
-        ipv4_address: 172.20.0.10
+      - app-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
              "-u", "appuser", "-pAppPassword123!"]
@@ -45,7 +44,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: "3000"
+      PORT: 3000
       DB_HOST: db-101032300137
       DB_USER: appuser
       DB_PASSWORD: AppPassword123!
@@ -54,8 +53,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      app-network:
-        ipv4_address: 172.20.0.11
+      - app-network
     depends_on:
       db-101032300137:
         condition: service_healthy
@@ -72,8 +70,7 @@ services:
     ports:
       - "8080:80"
     networks:
-      app-network:
-        ipv4_address: 172.20.0.12
+      - app-network
     depends_on:
       db-101032300137:
         condition: service_healthy
@@ -83,7 +80,7 @@ services:
     container_name: snort-101032300137
     build:
       context: .
-      dockerfile: Dockerfile.snort-v2
+      dockerfile: Dockerfile.snort
     restart: unless-stopped
 
     # network_mode: host — WAJIB agar Snort bisa:
@@ -96,37 +93,27 @@ services:
     cap_add:
       - NET_ADMIN   # Izin kelola network interface
       - NET_RAW     # Izin baca raw packet (WAJIB untuk sniffing)
-      - SYS_NICE 
-      - SYS_ADMIN   # Izin set process priority
+      - SYS_NICE    # Izin set process priority
 
     volumes:
       # Mount konfigurasi (read-only agar tidak termodifikasi)
-      - ./snort-config-v2/snort.conf:/etc/snort/snort.conf:ro
-      - ./snort-config-v2/local.rules:/etc/snort/rules/local.rules:ro
-      # BIND MOUNT log — langsung bisa akses dari host!
-      - ./snort-logs:/var/log/snort
+      - ./snort-config/snort.conf:/etc/snort/snort.conf:ro
+      - ./snort-config/local.rules:/etc/snort/rules/local.rules:ro
+      # Mount log agar bisa diakses dari host
+      - snort_logs:/var/log/snort
 
     depends_on:
-      web-101032300137:
-        condition: service_started
-      db-101032300137:
-        condition: service_healthy
+      - web-101032300137
+      - db-101032300137
 
 # ─── VOLUMES ─────────────────────────────────────────────────
 volumes:
   db_data:
+    driver: local
+  snort_logs:
     driver: local
 
 # ─── NETWORKS ────────────────────────────────────────────────
 networks:
   app-network:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        # Subnet khusus untuk isolasi jaringan aplikasi
-        - subnet: 172.20.0.0/24
-          gateway: 172.20.0.1
-    driver_opts:
-      # Nama custom untuk bridge interface di host (max 15 char)
-      com.docker.network.bridge.name: br-appnet
