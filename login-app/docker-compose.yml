@@ -83,7 +83,7 @@ services:
     container_name: snort-101032300137
     build:
       context: .
-      dockerfile: Dockerfile.snort
+      dockerfile: Dockerfile.snort-v2
     restart: unless-stopped
 
     # network_mode: host — WAJIB agar Snort bisa:
@@ -101,8 +101,8 @@ services:
 
     volumes:
       # Mount konfigurasi (read-only agar tidak termodifikasi)
-      - ./snort-config/snort.conf:/etc/snort/snort.conf:ro
-      - ./snort-config/local.rules:/etc/snort/rules/local.rules:ro
+      - ./snort-config-v2/snort.conf:/etc/snort/snort.conf:ro
+      - ./snort-config-v2/local.rules:/etc/snort/rules/local.rules:ro
       # BIND MOUNT log — langsung bisa akses dari host!
       - ./snort-logs:/var/log/snort
 

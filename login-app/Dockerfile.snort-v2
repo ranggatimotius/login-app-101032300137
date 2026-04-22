@@ -1,0 +1,77 @@
+FROM kalilinux/kali-rolling
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ─── Install Snort 2.9 + dependencies ────────────────────────
+RUN apt-get update && apt-get install -y \
+    snort \
+    wget \
+    curl \
+    net-tools \
+    iproute2 \
+    iputils-ping \
+    netcat-traditional \
+    ethtool \
+    dos2unix \
+    && rm -rf /var/lib/apt/lists/*
+
+# ─── Create required directories ─────────────────────────────
+RUN mkdir -p /etc/snort/rules \
+             /etc/snort/so_rules \
+             /etc/snort/preproc_rules \
+             /var/log/snort \
+             /usr/local/lib/snort_dynamicrules
+
+# ─── Fix dynamic library paths ──────────────────────────────
+# Snort 2.9 di Kali mungkin install ke lokasi berbeda
+# Cari dan buat symlink ke path standard
+RUN SNORT_DYN_ENG=$(find /usr/lib -name "libsf_engine.so" 2>/dev/null | head -1) && \
+    if [ -n "$SNORT_DYN_ENG" ]; then \
+        ACTUAL_DIR=$(dirname "$SNORT_DYN_ENG"); \
+        if [ "$ACTUAL_DIR" != "/usr/lib/snort_dynamicengine" ]; then \
+            mkdir -p /usr/lib/snort_dynamicengine && \
+            ln -sf "$SNORT_DYN_ENG" /usr/lib/snort_dynamicengine/libsf_engine.so; \
+        fi; \
+    fi && \
+    SNORT_DYN_PRE=$(find /usr/lib -type d -name "snort_dynamicpreprocessor" 2>/dev/null | head -1) && \
+    if [ -n "$SNORT_DYN_PRE" ] && [ "$SNORT_DYN_PRE" != "/usr/lib/snort_dynamicpreprocessor/" ]; then \
+        ln -sf "$SNORT_DYN_PRE" /usr/lib/snort_dynamicpreprocessor 2>/dev/null || true; \
+    fi
+
+# ─── unicode.map for http_inspect ────────────────────────────
+# Cari unicode.map yang sudah ada dari package snort
+RUN UMAP=$(find /etc/snort -name "unicode.map" 2>/dev/null | head -1) && \
+    if [ -z "$UMAP" ]; then \
+        UMAP=$(find /usr -name "unicode.map" 2>/dev/null | head -1); \
+    fi && \
+    if [ -n "$UMAP" ] && [ "$UMAP" != "/etc/snort/unicode.map" ]; then \
+        cp "$UMAP" /etc/snort/unicode.map; \
+    elif [ -z "$UMAP" ]; then \
+        touch /etc/snort/unicode.map; \
+    fi
+
+# ─── Copy config files ───────────────────────────────────────
+COPY snort-config-v2/snort.conf          /etc/snort/snort.conf
+COPY snort-config-v2/local.rules         /etc/snort/rules/local.rules
+COPY snort-config-v2/entrypoint-snort.sh /entrypoint-snort.sh
+
+# ─── Fix line endings + permissions ──────────────────────────
+RUN dos2unix /etc/snort/snort.conf \
+             /etc/snort/rules/local.rules \
+             /entrypoint-snort.sh && \
+    touch /etc/snort/rules/white_list.rules \
+          /etc/snort/rules/black_list.rules && \
+    chmod 644 /etc/snort/rules/*.rules && \
+    chmod +x /entrypoint-snort.sh
+
+# ─── Debug: tampilkan info Snort ─────────────────────────────
+RUN echo "=== Snort version ===" && snort -V 2>&1 || true && \
+    echo "=== Dynamic engine ===" && ls -la /usr/lib/snort_dynamicengine/ 2>/dev/null || true && \
+    echo "=== Dynamic preprocessors ===" && ls /usr/lib/snort_dynamicpreprocessor/ 2>/dev/null | head -5 || true && \
+    echo "=== unicode.map ===" && ls -la /etc/snort/unicode.map 2>/dev/null || true
+
+# ─── Verifikasi instalasi (Test Konfigurasi) ─────────────────
+# -T = test mode, -c = config file
+RUN snort -T -c /etc/snort/snort.conf 2>&1
+
+CMD ["/entrypoint-snort.sh"]
