@@ -72,7 +72,7 @@ router.post('/register', isGuest, [
     const [existingEmail] = await db.execute('SELECT id FROM users WHERE email = ? LIMIT 1', [email]);
     if (existingEmail.length > 0) return res.status(409).send(renderRegisterPage({ error: 'Email sudah terdaftar', success: null }));
 
-    const password_hash = await bcrypt.hash(password, 12);
+    const password_hash = await bcrypt.hash(password, 13);
     await db.execute('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)', [username, email, password_hash]);
 
     res.send(renderLoginPage({ error: null, success: `Akun berhasil dibuat! Silakan login, ${username}.` }));
