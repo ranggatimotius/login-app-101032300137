@@ -6,6 +6,7 @@ const session = require('express-session');
 const helmet = require('helmet');
 
 const authRoutes = require('./routes/auth');
+const { ipsMiddleware, getAlerts, getBlockedIPs, getStats } = require('./middleware/ips');
 
 const app = express();
 
@@ -15,7 +16,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", 'data:'],
     }
@@ -31,6 +33,10 @@ app.use(helmet({
 app.use(express.urlencoded({ extended: false, limit: '10kb' })); // limit body size
 app.use(express.json({ limit: '10kb' }));
 
+// ─── IPS MIDDLEWARE ───────────────────────────────────────────
+// Dijalankan SEBELUM session & routes agar bisa blokir lebih awal
+app.use(ipsMiddleware);
+
 // ─── SESSION ──────────────────────────────────────────────────
 app.use(session({
   secret: process.env.SESSION_SECRET || 'SuperSecretKey_101032300137_ChangeInProduction!',
@@ -43,6 +49,20 @@ app.use(session({
     maxAge: 1000 * 60 * 60 // 1 jam
   }
 }));
+
+// ─── IPS API ENDPOINTS ────────────────────────────────────────
+// Endpoint untuk mengambil alert IPS (dipakai oleh frontend)
+app.get('/api/ips/alerts', (req, res) => {
+  res.json({ ok: true, alerts: getAlerts() });
+});
+
+app.get('/api/ips/stats', (req, res) => {
+  res.json({ ok: true, stats: getStats() });
+});
+
+app.get('/api/ips/blocked', (req, res) => {
+  res.json({ ok: true, blocked: getBlockedIPs() });
+});
 
 // ─── ROUTES ───────────────────────────────────────────────────
 app.use('/', authRoutes);
@@ -64,4 +84,5 @@ https.createServer(sslOptions, app).listen(PORT, () => {
   console.log(`\n✅ Server berjalan di https://localhost:${PORT}`);
   console.log(`🔐 HTTPS aktif dengan SSL self-signed certificate`);
   console.log(`🛡️  Helmet security middleware aktif`);
+  console.log(`🚨 IPS (Intrusion Prevention System) aktif`);
 });

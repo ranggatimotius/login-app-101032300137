@@ -5,6 +5,7 @@ const xss = require('xss');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/db');
 const { isAuthenticated, isGuest } = require('../middleware/auth');
+const { recordFailedLogin, resetLoginAttempts, getIP } = require('../middleware/ips');
 
 router.get('/', (req, res) => res.redirect('/login'));
 
@@ -24,13 +25,23 @@ router.post('/login', isGuest, [
   const username = xss(req.body.username.trim());
   const password = req.body.password;
 
+  const ip = getIP(req);
   try {
     const [rows] = await db.execute('SELECT id, username, password_hash FROM users WHERE username = ? LIMIT 1', [username]);
-    if (rows.length === 0) return res.status(401).send(renderLoginPage({ error: 'Username atau password salah', success: null }));
+    if (rows.length === 0) {
+      const blocked = recordFailedLogin(ip);
+      if (blocked) return res.status(403).send('<h3>IP diblokir oleh IPS karena brute-force. Coba lagi nanti.</h3>');
+      return res.status(401).send(renderLoginPage({ error: 'Username atau password salah', success: null }));
+    }
 
     const isMatch = await bcrypt.compare(password, rows[0].password_hash);
-    if (!isMatch) return res.status(401).send(renderLoginPage({ error: 'Username atau password salah', success: null }));
+    if (!isMatch) {
+      const blocked = recordFailedLogin(ip);
+      if (blocked) return res.status(403).send('<h3>IP diblokir oleh IPS karena brute-force. Coba lagi nanti.</h3>');
+      return res.status(401).send(renderLoginPage({ error: 'Username atau password salah', success: null }));
+    }
 
+    resetLoginAttempts(ip);
     req.session.regenerate((err) => {
       if (err) throw err;
       req.session.userId = rows[0].id;
@@ -98,6 +109,63 @@ router.post('/logout', isAuthenticated, (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // SHARED STYLES
 // ═══════════════════════════════════════════════════════════════
+// ─── IPS TOAST SCRIPT ────────────────────────────────────────
+const ipsToastScript = `
+<div id="ips-toast" style="
+  display:none; position:fixed; top:20px; right:20px; z-index:9999;
+  background:rgba(239,68,68,0.15); backdrop-filter:blur(16px);
+  border:1px solid rgba(239,68,68,0.45); border-radius:14px;
+  padding:14px 18px; min-width:320px; max-width:420px;
+  box-shadow:0 8px 32px rgba(239,68,68,0.2);
+  font-family:'Segoe UI',sans-serif; animation:slideIn 0.3s ease;
+">
+  <div style="display:flex;align-items:flex-start;gap:10px;">
+    <span style="font-size:22px;flex-shrink:0;">🚨</span>
+    <div style="flex:1;">
+      <div style="color:#fca5a5;font-size:13px;font-weight:700;margin-bottom:4px;">IPS — Serangan Berhasil Diblokir!</div>
+      <div id="ips-toast-msg" style="color:rgba(255,255,255,0.75);font-size:12px;line-height:1.5;"></div>
+    </div>
+    <button onclick="document.getElementById('ips-toast').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:16px;padding:0;flex-shrink:0;">✕</button>
+  </div>
+</div>
+<style>
+  @keyframes slideIn { from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);} }
+</style>
+<script>
+(function(){
+  let lastSeen = null;
+  function checkIPS(){
+    fetch('/api/ips/alerts')
+      .then(r=>r.json())
+      .then(data=>{
+        if(!data.alerts||data.alerts.length===0) return;
+        const latest = data.alerts[0];
+        if(latest.id === lastSeen) return;
+        lastSeen = latest.id;
+        const typeLabel = {
+          'brute-force':'Brute-Force Login',
+          'sqli':'SQL Injection',
+          'xss':'XSS Attack',
+          'pathTraversal':'Path Traversal',
+          'cmdInjection':'Command Injection',
+          'rate-limit':'Rate Limit'
+        }[latest.type] || latest.type.toUpperCase();
+        const msg = '⚠️ <b>'+typeLabel+'</b> dari IP <code style="background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:4px;">'+latest.ip+'</code><br>'
+          +'<span style="opacity:0.7;">'+latest.detail+'</span><br>'
+          +'<span style="opacity:0.45;font-size:11px;">'+new Date(latest.ts).toLocaleString('id-ID')+'</span>';
+        document.getElementById('ips-toast-msg').innerHTML = msg;
+        const toast = document.getElementById('ips-toast');
+        toast.style.display='block';
+        setTimeout(()=>{ toast.style.display='none'; }, 8000);
+      })
+      .catch(()=>{});
+  }
+  checkIPS();
+  setInterval(checkIPS, 5000);
+})();
+<\/script>
+`;
+
 const sharedStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -218,8 +286,9 @@ function renderLoginPage({ error, success }) {
     </form>
     <div class="divider">atau</div>
     <a href="/register" class="link-btn">Belum punya akun? <span>Daftar sekarang</span></a>
-    <p class="secure-badge"><b>🔒 HTTPS</b> · Koneksi Aman · Bcrypt Encrypted</p>
+    <p class="secure-badge"><b>🔒 HTTPS</b> · Koneksi Aman · Bcrypt Encrypted · <b style="color:#f87171;">🚨 IPS Aktif</b></p>
   </div>
+  ${ipsToastScript}
 </body>
 </html>`;
 }
@@ -276,8 +345,9 @@ function renderRegisterPage({ error, success }) {
     </form>
     <div class="divider">atau</div>
     <a href="/login" class="link-btn">Sudah punya akun? <span>Masuk di sini</span></a>
-    <p class="secure-badge"><b>🔒 HTTPS</b> · Koneksi Aman · Bcrypt Encrypted</p>
+    <p class="secure-badge"><b>🔒 HTTPS</b> · Koneksi Aman · Bcrypt Encrypted · <b style="color:#f87171;">🚨 IPS Aktif</b></p>
   </div>
+  ${ipsToastScript}
 </body>
 </html>`;
 }
@@ -352,10 +422,11 @@ function renderHomePage({ username }) {
       <div class="stats">
         <div class="stat-card"><div class="stat-value">🔐</div><div class="stat-label">HTTPS Aktif</div></div>
         <div class="stat-card"><div class="stat-value">🛡️</div><div class="stat-label">XSS Protected</div></div>
-        <div class="stat-card"><div class="stat-value">💉</div><div class="stat-label">SQLi Blocked</div></div>
+        <div class="stat-card"><div class="stat-value">🚨</div><div class="stat-label">IPS Aktif</div></div>
       </div>
     </div>
   </main>
+  ${ipsToastScript}
 </body>
 </html>`;
 }
