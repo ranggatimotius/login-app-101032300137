@@ -104,9 +104,6 @@ services:
       # Mount log agar bisa diakses dari host
       - snort_logs:/var/log/snort
 
-    # Fix CRLF: copy ke /tmp dulu sebelum jalankan script
-    entrypoint: ["/bin/bash", "-c", "cp /entrypoint-snort.sh /tmp/ep.sh && sed -i 's/\\r//' /tmp/ep.sh && chmod +x /tmp/ep.sh && /tmp/ep.sh"]
-
     depends_on:
       - web-101032300137
       - db-101032300137
