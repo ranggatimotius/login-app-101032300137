@@ -4,15 +4,15 @@ echo "╔═══════════════════════�
 echo "║    Snort IDS Container — NIM: 101032300137   ║"
 echo "╚══════════════════════════════════════════════╝"
 
-# Deteksi bridge interface Docker yang aktif
-BRIDGE_IFACE=$(ip link show | grep -E "br-[a-z0-9]+" | grep "state UP" | \
-    awk -F': ' '{print $2}' | head -n1)
+# Deteksi bridge interface Docker berdasarkan IP gateway 192.168.1.1
+BRIDGE_IFACE=$(ip -4 addr show | grep "inet 192.168.1.1/" | awk '{print $NF}' | head -n1)
 
 if [ -n "$BRIDGE_IFACE" ]; then
     INTERFACE=$BRIDGE_IFACE
-    echo "✅ Menggunakan Docker bridge: $INTERFACE"
+    echo "✅ Menggunakan Docker bridge (192.168.1.x): $INTERFACE"
 else
-    INTERFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
+    INTERFACE=$(ip link show | grep -E "br-[a-z0-9]+" | grep "state UP" | \
+        awk -F': ' '{print $2}' | head -n1)
     [ -z "$INTERFACE" ] && INTERFACE="eth0"
     echo "✅ Fallback interface: $INTERFACE"
 fi
@@ -27,7 +27,6 @@ echo "════════════════════════�
 snort \
     -c /etc/snort/snort.conf \
     -i $INTERFACE \
-    -A alert_fast \
     -l /var/log/snort \
     -k none \
     --warn-all &

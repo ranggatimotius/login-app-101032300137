@@ -100,8 +100,12 @@ services:
       # Mount konfigurasi (read-only agar tidak termodifikasi)
       - ./snort-config/snort.conf:/etc/snort/snort.conf:ro
       - ./snort-config/local.rules:/etc/snort/rules/local.rules:ro
+      - ./snort-config/entrypoint-snort.sh:/entrypoint-snort.sh:ro
       # Mount log agar bisa diakses dari host
       - snort_logs:/var/log/snort
+
+    # Fix CRLF: copy ke /tmp dulu sebelum jalankan script
+    entrypoint: ["/bin/bash", "-c", "cp /entrypoint-snort.sh /tmp/ep.sh && sed -i 's/\\r//' /tmp/ep.sh && chmod +x /tmp/ep.sh && /tmp/ep.sh"]
 
     depends_on:
       - web-101032300137
