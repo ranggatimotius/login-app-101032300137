@@ -26,7 +26,8 @@ services:
     expose:
       - "3306"
     networks:
-      - app-network
+      app-network:
+        ipv4_address: 192.168.1.138
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
              "-u", "appuser", "-pAppPassword123!"]
@@ -54,7 +55,8 @@ services:
       - "3000:3000"
       - "8000:8000"
     networks:
-      - app-network
+      app-network:
+        ipv4_address: 192.168.1.137
     depends_on:
       db-101032300137:
         condition: service_healthy
@@ -119,3 +121,6 @@ volumes:
 networks:
   app-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
