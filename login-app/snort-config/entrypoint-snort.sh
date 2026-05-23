@@ -22,21 +22,17 @@ echo "════════════════════════�
 echo "  Snort 3 NIDS aktif — memonitor traffic..."
 echo "══════════════════════════════════════════════"
 
-# Jalankan Snort di background
-snort \
+# Pastikan file ada agar tail tidak error
+touch /var/log/snort/alert_fast.txt
+
+# Tampilkan alert ke stdout (jalankan di background)
+tail -f /var/log/snort/alert_fast.txt &
+
+echo "⏳ Memulai Snort di foreground..."
+# Jalankan Snort di foreground agar jika crash, error-nya terlihat di log container
+exec snort \
     -c /etc/snort/snort.conf \
-    -R /etc/snort/rules/snort3-community.rules \
     -i $INTERFACE \
     -l /var/log/snort \
     -k none \
-    --warn-all &
-
-# Tunggu file alert terbuat
-echo "⏳ Menunggu Snort siap..."
-sleep 5
-
-echo "✅ Snort aktif — menampilkan alert ke stdout..."
-echo "══════════════════════════════════════════════"
-
-# Tampilkan alert ke stdout agar muncul di docker logs
-tail -f /var/log/snort/alert_fast.txt
+    --warn-all
