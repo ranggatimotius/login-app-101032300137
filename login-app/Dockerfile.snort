@@ -26,6 +26,11 @@ RUN mkdir -p /etc/snort/rules \
              /var/log/snort \
              /usr/local/lib/snort_dynamicrules
 
+# ─── Download Community Rules ────────────────────────────────
+RUN wget https://www.snort.org/downloads/community/snort3-community-rules.tar.gz -O /tmp/community.tar.gz && \
+    tar -xzvf /tmp/community.tar.gz -C /tmp/ && \
+    cp /tmp/snort3-community-rules/snort3-community.rules /etc/snort/rules/ && \
+    rm -rf /tmp/community.tar.gz /tmp/snort3-community-rules
 # ─── Copy file konfigurasi ───────────────────────────────────
 COPY snort-config/snort.conf          /etc/snort/snort.conf
 COPY snort-config/local.rules         /etc/snort/rules/local.rules

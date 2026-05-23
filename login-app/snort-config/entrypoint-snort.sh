@@ -25,6 +25,7 @@ echo "════════════════════════�
 # Jalankan Snort di background
 snort \
     -c /etc/snort/snort.conf \
+    -R /etc/snort/rules/snort3-community.rules \
     -i $INTERFACE \
     -l /var/log/snort \
     -k none \
